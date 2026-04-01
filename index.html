@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NebulaCloud Drive</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root{--bg:#0a0b14;--surface:#181a30;--surface2:#1e2040;--border:rgba(120,130,255,.2);--accent:#7c6fff;--teal:#2dd4c0;--text1:#f0f0ff;--text2:#a0a8cc;--text3:#60688a}
+    *{box-sizing:border-box;margin:0;padding:0} body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text1);min-height:100vh}
+    nav{height:60px;padding:0 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:rgba(10,11,20,.9);position:sticky;top:0}
+    .logo{display:flex;align-items:center;gap:10px;font-family:'Syne',sans-serif;font-weight:700;text-decoration:none;color:var(--text1)} .logo svg{width:28px;height:28px}
+    .logo span{background:linear-gradient(135deg,#a78bfa,var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .search{margin-left:auto;max-width:360px;flex:1}.search input{width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text1)}
+    .wrap{display:flex;min-height:calc(100vh - 60px)} aside{width:220px;border-right:1px solid var(--border);padding:16px;background:#0f1020}
+    .btn{border:1px solid var(--border);background:var(--surface);color:var(--text2);padding:8px 12px;border-radius:10px;cursor:pointer}
+    .btn.primary{background:linear-gradient(135deg,var(--accent),rgba(45,212,192,.8));color:#fff;border:none} .btn:disabled{opacity:.5;cursor:not-allowed}
+    main{flex:1;padding:18px}
+    .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+    .title{font-family:'Syne',sans-serif;font-size:20px;margin-right:auto}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer}
+    .card.active{border-color:var(--accent)} .meta{font-size:12px;color:var(--text3)} .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .panel{width:300px;border-left:1px solid var(--border);padding:16px;background:#101225}
+    .empty{padding:28px;border:1px dashed var(--border);border-radius:12px;color:var(--text3);text-align:center}
+    .row{display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+    .toast{position:fixed;right:16px;bottom:16px;background:var(--surface2);border:1px solid var(--border);padding:10px 12px;border-radius:10px;display:none}
+  </style>
+</head>
+<body>
+<nav>
+  <a class="logo" href="#">
+    <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="13" stroke="url(#lg1)" stroke-width="1.5"/><path d="M7 16c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="url(#lg2)" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="3" fill="url(#lg2)"/><defs><linearGradient id="lg1" x1="0" y1="0" x2="28" y2="28"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#2dd4c0"/></linearGradient><linearGradient id="lg2" x1="7" y1="9" x2="21" y2="23"><stop stop-color="#7c6fff"/><stop offset="1" stop-color="#2dd4c0"/></linearGradient></defs></svg>
+    <span>NebulaCloud</span> Drive
+  </a>
+  <div class="search"><input id="searchInput" placeholder="Search files..."/></div>
+</nav>
+
+<div class="wrap">
+  <aside>
+    <p style="color:var(--text3);font-size:12px;margin-bottom:10px">Storage backend</p>
+    <p id="backendLabel" style="font-size:13px;color:var(--text2)">Local mode (set AWS API below)</p>
+  </aside>
+
+  <main>
+    <div class="toolbar">
+      <div class="title">My Drive</div>
+      <button class="btn primary" id="uploadBtn">Upload</button>
+      <button class="btn" id="newFolderBtn">New Folder</button>
+      <button class="btn" id="deleteBtn" disabled>Delete</button>
+      <button class="btn" id="downloadBtn" disabled>Download</button>
+    </div>
+    <input id="filePicker" type="file" multiple hidden />
+    <div id="grid" class="grid"></div>
+    <div id="emptyState" class="empty">No files yet. Upload to AWS S3 or add a folder to get started.</div>
+  </main>
+
+  <section class="panel">
+    <h3 style="margin-bottom:10px">Details</h3>
+    <div id="detailEmpty" class="meta">Select a file or folder.</div>
+    <div id="detailBody" style="display:none">
+      <div class="row"><span>Name</span><span id="dName"></span></div>
+      <div class="row"><span>Type</span><span id="dType"></span></div>
+      <div class="row"><span>Size</span><span id="dSize"></span></div>
+      <div class="row"><span>Modified</span><span id="dModified"></span></div>
+    </div>
+  </section>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  // AWS integration:
+  // 1) Set API_BASE to your backend URL (API Gateway/ALB)
+  // 2) Implement POST /upload-url -> { uploadUrl, key }
+  // 3) Implement GET /download-url?key=... -> { downloadUrl }
+  const API_BASE = "";
+
+  const state = { files: [], filtered: [], selectedId: null };
+
+  const formatSize = (bytes) => {
+    if (typeof bytes !== 'number') return bytes || '-';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 ** 2) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 ** 2)).toFixed(1) + ' MB';
+  };
+
+  const toast = (msg) => {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.style.display = 'none', 2400);
+  };
+
+  function getSelected() { return state.files.find(f => f.id === state.selectedId); }
+
+  function setSelected(id) {
+    state.selectedId = id;
+    const f = getSelected();
+    document.querySelectorAll('.card').forEach(c => c.classList.toggle('active', c.dataset.id === id));
+    document.getElementById('deleteBtn').disabled = !f;
+    document.getElementById('downloadBtn').disabled = !f || f.type === 'folder';
+    document.getElementById('detailEmpty').style.display = f ? 'none' : 'block';
+    document.getElementById('detailBody').style.display = f ? 'block' : 'none';
+    if (!f) return;
+    dName.textContent = f.name; dType.textContent = f.type; dSize.textContent = f.type === 'folder' ? '-' : formatSize(f.size);
+    dModified.textContent = f.modified;
+  }
+
+  function render() {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    state.filtered.forEach(f => {
+      const el = document.createElement('div');
+      el.className = 'card' + (f.id === state.selectedId ? ' active' : '');
+      el.dataset.id = f.id;
+      el.innerHTML = `<div style="font-size:30px;margin-bottom:6px">${f.type === 'folder' ? '📁' : '📄'}</div><div class="name">${f.name}</div><div class="meta">${f.type === 'folder' ? 'folder' : formatSize(f.size)}</div>`;
+      el.onclick = () => setSelected(f.id);
+      grid.appendChild(el);
+    });
+    emptyState.style.display = state.filtered.length ? 'none' : 'block';
+  }
+
+  function applyFilter(q = '') {
+    const v = q.trim().toLowerCase();
+    state.filtered = v ? state.files.filter(f => f.name.toLowerCase().includes(v)) : [...state.files];
+    if (!state.filtered.find(f => f.id === state.selectedId)) setSelected(null);
+    render();
+  }
+
+  async function uploadToAws(file) {
+    const metaResp = await fetch(`${API_BASE}/upload-url`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name: file.name, type: file.type})
+    });
+    if (!metaResp.ok) throw new Error('Failed to get upload URL');
+    const { uploadUrl, key } = await metaResp.json();
+
+    const putResp = await fetch(uploadUrl, { method: 'PUT', headers: {'Content-Type': file.type || 'application/octet-stream'}, body: file });
+    if (!putResp.ok) throw new Error('S3 upload failed');
+
+    return { key };
+  }
+
+  async function handleUpload(files) {
+    if (!files.length) return;
+    for (const file of files) {
+      let key = null;
+      try {
+        if (API_BASE) {
+          const res = await uploadToAws(file);
+          key = res.key;
+        }
+        state.files.unshift({
+          id: crypto.randomUUID(), name: file.name, type: 'file', size: file.size,
+          modified: new Date().toISOString().slice(0, 10), awsKey: key, localFile: API_BASE ? null : file
+        });
+      } catch (e) {
+        toast(`Upload failed: ${file.name}`);
+      }
+    }
+    applyFilter(searchInput.value);
+    toast('Upload complete');
+  }
+
+  async function downloadSelected() {
+    const f = getSelected();
+    if (!f || f.type === 'folder') return;
+    try {
+      if (API_BASE && f.awsKey) {
+        const r = await fetch(`${API_BASE}/download-url?key=${encodeURIComponent(f.awsKey)}`);
+        if (!r.ok) throw new Error('No download URL');
+        const { downloadUrl } = await r.json();
+        window.open(downloadUrl, '_blank');
+      } else if (f.localFile) {
+        const url = URL.createObjectURL(f.localFile);
+        const a = document.createElement('a');
+        a.href = url; a.download = f.name; a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        throw new Error('File source missing');
+      }
+      toast('Download started');
+    } catch {
+      toast('Download failed');
+    }
+  }
+
+  function deleteSelected() {
+    const f = getSelected();
+    if (!f) return;
+    state.files = state.files.filter(x => x.id !== f.id);
+    setSelected(null);
+    applyFilter(searchInput.value);
+    toast(`Deleted ${f.name}`);
+  }
+
+  function addFolder() {
+    const name = prompt('Folder name', 'New Folder');
+    if (!name) return;
+    state.files.unshift({ id: crypto.randomUUID(), name, type: 'folder', size: 0, modified: new Date().toISOString().slice(0, 10) });
+    applyFilter(searchInput.value);
+    toast('Folder created');
+  }
+
+  uploadBtn.onclick = () => filePicker.click();
+  filePicker.onchange = (e) => handleUpload([...e.target.files]);
+  deleteBtn.onclick = deleteSelected;
+  downloadBtn.onclick = downloadSelected;
+  newFolderBtn.onclick = addFolder;
+  searchInput.oninput = (e) => applyFilter(e.target.value);
+
+  backendLabel.textContent = API_BASE ? `AWS mode (${API_BASE})` : 'Local mode (set API_BASE for AWS S3)';
+  applyFilter();
+</script>
+</body>
+</html>
