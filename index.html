@@ -4,477 +4,214 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NebulaCloud Drive</title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
-    :root {
-      --bg:#0a0b14; --bg2:#0f1020; --surface:#171a30; --surface2:#1f2340; --border:rgba(134,145,255,.18);
-      --text:#eef0ff; --muted:#9ea7c9; --primary:#7b6dff; --teal:#2dd4c0; --danger:#ef4444;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'DM Sans', sans-serif; background: radial-gradient(1200px 500px at 0 -20%, rgba(123,109,255,.2), transparent), var(--bg); color: var(--text); min-height: 100vh; }
-    .hidden { display: none !important; }
-
-    .auth-shell { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
-    .auth-card { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 24px; }
-    .brand { display: flex; align-items: center; gap: 10px; font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 18px; }
-    .brand span { background: linear-gradient(120deg, #b2a7ff, var(--teal)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .auth-tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; margin-bottom: 16px; }
-    .auth-tab { border: 0; padding: 10px; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
-    .auth-tab.active { background: var(--surface2); color: var(--text); }
-    .field { margin-bottom: 12px; }
-    .field label { color: var(--muted); font-size: 12px; display: block; margin-bottom: 5px; }
-    .field input { width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg2); color: var(--text); }
-    .btn { border: 1px solid var(--border); border-radius: 10px; background: var(--surface2); color: var(--text); padding: 10px 12px; cursor: pointer; }
-    .btn.primary { border: 0; background: linear-gradient(120deg, var(--primary), var(--teal)); }
-    .btn.danger { border-color: rgba(239,68,68,.45); color: #fecaca; }
-    .btn:disabled { opacity: .55; cursor: not-allowed; }
-    .auth-card .btn.primary { width: 100%; margin-top: 4px; }
-
-    .app { min-height: 100vh; display: grid; grid-template-rows: 60px 1fr; }
-    nav { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); padding: 0 16px; background: rgba(10,11,20,.88); backdrop-filter: blur(10px); }
-    .logo { display: flex; align-items: center; gap: 10px; font-family: 'Syne', sans-serif; font-weight: 700; }
-    .logo svg { width: 28px; height: 28px; }
-    .logo span { background: linear-gradient(120deg, #b2a7ff, var(--teal)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .search { margin-left: auto; max-width: 420px; flex: 1; }
-    .search input { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); }
-    .nav-right { display: flex; gap: 8px; align-items: center; }
-    .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(120deg, var(--primary), var(--teal)); display: grid; place-items: center; font-size: 12px; font-weight: 700; }
-
-    .layout { display: grid; grid-template-columns: 250px 1fr 320px; min-height: calc(100vh - 60px); }
-    aside { border-right: 1px solid var(--border); background: rgba(16,18,35,.75); padding: 14px; }
-    .side-title { color: var(--muted); font-size: 11px; text-transform: uppercase; margin: 10px 0 8px; letter-spacing: .08em; }
-    .side-link { width: 100%; text-align: left; border: 0; background: transparent; color: var(--muted); padding: 10px 10px; border-radius: 9px; cursor: pointer; }
-    .side-link.active, .side-link:hover { background: var(--surface2); color: var(--text); }
-    .storage-card { margin-top: 14px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
-    .bar { height: 8px; background: var(--bg2); border-radius: 999px; overflow: hidden; margin-top: 8px; }
-    .bar > div { height: 100%; background: linear-gradient(120deg, var(--primary), var(--teal)); width: 0%; }
-
-    main { padding: 18px; }
-    .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-    .toolbar h2 { font-family: 'Syne', sans-serif; font-size: 22px; margin-right: auto; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 12px; }
-    .item { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 12px; cursor: pointer; }
-    .item:hover { border-color: rgba(134,145,255,.35); }
-    .item.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(123,109,255,.2); }
-    .item-type { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: rgba(123,109,255,.18); margin-bottom: 8px; font-weight: 700; }
-    .item-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .item-meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
-    .empty { border: 1px dashed var(--border); border-radius: 12px; color: var(--muted); padding: 26px; text-align: center; }
-
-    .details { border-left: 1px solid var(--border); background: rgba(16,18,35,.75); padding: 16px; }
-    .details h3 { margin-bottom: 10px; font-family: 'Syne', sans-serif; }
-    .row { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); border-bottom: 1px solid rgba(255,255,255,.07); padding: 7px 0; }
-    .row strong { color: var(--text); }
-    .share-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
-    .chip { font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 20px; color: var(--muted); }
-
-    .modal-wrap { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; }
-    .modal { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
-    .modal h4 { margin-bottom: 12px; }
-    .modal .actions { margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px; }
-    .toast { position: fixed; right: 16px; bottom: 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: none; }
-
-    @media (max-width: 1100px) { .layout { grid-template-columns: 220px 1fr; } .details { display: none; } }
-    @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } aside { display: none; } }
+    :root{--bg:#0a0b14;--surface:#181a30;--surface2:#1e2040;--border:rgba(120,130,255,.2);--accent:#7c6fff;--teal:#2dd4c0;--text1:#f0f0ff;--text2:#a0a8cc;--text3:#60688a}
+    *{box-sizing:border-box;margin:0;padding:0} body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text1);min-height:100vh}
+    nav{height:60px;padding:0 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:rgba(10,11,20,.9);position:sticky;top:0}
+    .logo{display:flex;align-items:center;gap:10px;font-family:'Syne',sans-serif;font-weight:700;text-decoration:none;color:var(--text1)} .logo svg{width:28px;height:28px}
+    .logo span{background:linear-gradient(135deg,#a78bfa,var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .search{margin-left:auto;max-width:360px;flex:1}.search input{width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text1)}
+    .wrap{display:flex;min-height:calc(100vh - 60px)} aside{width:220px;border-right:1px solid var(--border);padding:16px;background:#0f1020}
+    .btn{border:1px solid var(--border);background:var(--surface);color:var(--text2);padding:8px 12px;border-radius:10px;cursor:pointer}
+    .btn.primary{background:linear-gradient(135deg,var(--accent),rgba(45,212,192,.8));color:#fff;border:none} .btn:disabled{opacity:.5;cursor:not-allowed}
+    main{flex:1;padding:18px}
+    .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+    .title{font-family:'Syne',sans-serif;font-size:20px;margin-right:auto}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer}
+    .card.active{border-color:var(--accent)} .meta{font-size:12px;color:var(--text3)} .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .panel{width:300px;border-left:1px solid var(--border);padding:16px;background:#101225}
+    .empty{padding:28px;border:1px dashed var(--border);border-radius:12px;color:var(--text3);text-align:center}
+    .row{display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+    .toast{position:fixed;right:16px;bottom:16px;background:var(--surface2);border:1px solid var(--border);padding:10px 12px;border-radius:10px;display:none}
   </style>
 </head>
 <body>
-  <section id="authView" class="auth-shell">
-    <div class="auth-card">
-      <div class="brand">
-        <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="13" stroke="url(#lg1)" stroke-width="1.5"/><path d="M7 16c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="url(#lg2)" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="3" fill="url(#lg2)"/><defs><linearGradient id="lg1" x1="0" y1="0" x2="28" y2="28"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#2dd4c0"/></linearGradient><linearGradient id="lg2" x1="7" y1="9" x2="21" y2="23"><stop stop-color="#7c6fff"/><stop offset="1" stop-color="#2dd4c0"/></linearGradient></defs></svg>
-        <span>NebulaCloud</span> Drive
-      </div>
-      <div class="auth-tabs">
-        <button id="signInTab" class="auth-tab active">Sign In</button>
-        <button id="signUpTab" class="auth-tab">Sign Up</button>
-      </div>
-      <div class="field"><label>Email</label><input id="authEmail" type="email" placeholder="you@company.com"></div>
-      <div class="field"><label>Password</label><input id="authPassword" type="password" placeholder="Minimum 6 characters"></div>
-      <button id="authSubmit" class="btn primary">Sign In</button>
-      <p style="margin-top:10px;color:var(--muted);font-size:12px">Demo auth persists in local storage. Replace with Cognito in production.</p>
+<nav>
+  <a class="logo" href="#">
+    <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="13" stroke="url(#lg1)" stroke-width="1.5"/><path d="M7 16c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="url(#lg2)" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="3" fill="url(#lg2)"/><defs><linearGradient id="lg1" x1="0" y1="0" x2="28" y2="28"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#2dd4c0"/></linearGradient><linearGradient id="lg2" x1="7" y1="9" x2="21" y2="23"><stop stop-color="#7c6fff"/><stop offset="1" stop-color="#2dd4c0"/></linearGradient></defs></svg>
+    <span>NebulaCloud</span> Drive
+  </a>
+  <div class="search"><input id="searchInput" placeholder="Search files..."/></div>
+</nav>
+
+<div class="wrap">
+  <aside>
+    <p style="color:var(--text3);font-size:12px;margin-bottom:10px">Storage backend</p>
+    <p id="backendLabel" style="font-size:13px;color:var(--text2)">Local mode (set AWS API below)</p>
+  </aside>
+
+  <main>
+    <div class="toolbar">
+      <div class="title">My Drive</div>
+      <button class="btn primary" id="uploadBtn">Upload</button>
+      <button class="btn" id="newFolderBtn">New Folder</button>
+      <button class="btn" id="deleteBtn" disabled>Delete</button>
+      <button class="btn" id="downloadBtn" disabled>Download</button>
+    </div>
+    <input id="filePicker" type="file" multiple hidden />
+    <div id="grid" class="grid"></div>
+    <div id="emptyState" class="empty">No files yet. Upload to AWS S3 or add a folder to get started.</div>
+  </main>
+
+  <section class="panel">
+    <h3 style="margin-bottom:10px">Details</h3>
+    <div id="detailEmpty" class="meta">Select a file or folder.</div>
+    <div id="detailBody" style="display:none">
+      <div class="row"><span>Name</span><span id="dName"></span></div>
+      <div class="row"><span>Type</span><span id="dType"></span></div>
+      <div class="row"><span>Size</span><span id="dSize"></span></div>
+      <div class="row"><span>Modified</span><span id="dModified"></span></div>
     </div>
   </section>
+</div>
 
-  <section id="appView" class="app hidden">
-    <nav>
-      <div class="logo">
-        <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="13" stroke="url(#lg3)" stroke-width="1.5"/><path d="M7 16c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke="url(#lg4)" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="16" r="3" fill="url(#lg4)"/><defs><linearGradient id="lg3" x1="0" y1="0" x2="28" y2="28"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#2dd4c0"/></linearGradient><linearGradient id="lg4" x1="7" y1="9" x2="21" y2="23"><stop stop-color="#7c6fff"/><stop offset="1" stop-color="#2dd4c0"/></linearGradient></defs></svg>
-        <span>NebulaCloud</span> Drive
-      </div>
-      <div class="search"><input id="searchInput" placeholder="Search files and folders"></div>
-      <div class="nav-right">
-        <div id="userEmail" style="font-size:12px;color:var(--muted)"></div>
-        <div id="avatar" class="avatar"></div>
-        <button id="signOutBtn" class="btn">Sign Out</button>
-      </div>
-    </nav>
+<div id="toast" class="toast"></div>
 
-    <div class="layout">
-      <aside>
-        <div class="side-title">Sections</div>
-        <button class="side-link active">My Drive</button>
-        <button class="side-link">Shared with Me</button>
-        <button class="side-link">Recent</button>
-        <button class="side-link">Trash</button>
+<script>
+  // AWS integration:
+  // 1) Set API_BASE to your backend URL (API Gateway/ALB)
+  // 2) Implement POST /upload-url -> { uploadUrl, key }
+  // 3) Implement GET /download-url?key=... -> { downloadUrl }
+  const API_BASE = "";
 
-        <div class="storage-card">
-          <div style="font-size:12px;color:var(--muted)">Available Storage</div>
-          <div style="margin-top:5px"><strong id="storageLabel">0 MB / 0 MB</strong></div>
-          <div class="bar"><div id="storageBar"></div></div>
-          <div id="storageHint" style="margin-top:7px;font-size:11px;color:var(--muted)"></div>
-        </div>
+  const state = { files: [], filtered: [], selectedId: null };
 
-        <div style="margin-top:14px;font-size:12px;color:var(--muted)">Backend: <span id="backendLabel"></span></div>
-      </aside>
+  const formatSize = (bytes) => {
+    if (typeof bytes !== 'number') return bytes || '-';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 ** 2) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 ** 2)).toFixed(1) + ' MB';
+  };
 
-      <main>
-        <div class="toolbar">
-          <h2>My Drive</h2>
-          <button id="uploadFilesBtn" class="btn primary">Upload Files</button>
-          <button id="uploadFolderBtn" class="btn">Upload Folder</button>
-          <button id="newFolderBtn" class="btn">New Folder</button>
-          <button id="shareBtn" class="btn" disabled>Share</button>
-          <button id="downloadBtn" class="btn" disabled>Download</button>
-          <button id="deleteBtn" class="btn danger" disabled>Delete</button>
-        </div>
+  const toast = (msg) => {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.style.display = 'none', 2400);
+  };
 
-        <input id="fileInput" type="file" multiple class="hidden">
-        <input id="folderInput" type="file" webkitdirectory directory multiple class="hidden">
+  function getSelected() { return state.files.find(f => f.id === state.selectedId); }
 
-        <div id="emptyState" class="empty">No content yet. Upload files or folders to begin.</div>
-        <div id="grid" class="grid"></div>
-      </main>
+  function setSelected(id) {
+    state.selectedId = id;
+    const f = getSelected();
+    document.querySelectorAll('.card').forEach(c => c.classList.toggle('active', c.dataset.id === id));
+    document.getElementById('deleteBtn').disabled = !f;
+    document.getElementById('downloadBtn').disabled = !f || f.type === 'folder';
+    document.getElementById('detailEmpty').style.display = f ? 'none' : 'block';
+    document.getElementById('detailBody').style.display = f ? 'block' : 'none';
+    if (!f) return;
+    dName.textContent = f.name; dType.textContent = f.type; dSize.textContent = f.type === 'folder' ? '-' : formatSize(f.size);
+    dModified.textContent = f.modified;
+  }
 
-      <section class="details">
-        <h3>Details</h3>
-        <div id="detailEmpty" style="color:var(--muted)">Select an item to inspect and share.</div>
-        <div id="detailBox" class="hidden">
-          <div class="row"><span>Name</span><strong id="dName"></strong></div>
-          <div class="row"><span>Type</span><strong id="dType"></strong></div>
-          <div class="row"><span>Size</span><strong id="dSize"></strong></div>
-          <div class="row"><span>Modified</span><strong id="dModified"></strong></div>
-          <div style="margin-top:10px;color:var(--muted);font-size:12px">Shared with</div>
-          <div id="shareList" class="share-list"></div>
-        </div>
-      </section>
-    </div>
-  </section>
+  function render() {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    state.filtered.forEach(f => {
+      const el = document.createElement('div');
+      el.className = 'card' + (f.id === state.selectedId ? ' active' : '');
+      el.dataset.id = f.id;
+      el.innerHTML = `<div style="font-size:30px;margin-bottom:6px">${f.type === 'folder' ? '📁' : '📄'}</div><div class="name">${f.name}</div><div class="meta">${f.type === 'folder' ? 'folder' : formatSize(f.size)}</div>`;
+      el.onclick = () => setSelected(f.id);
+      grid.appendChild(el);
+    });
+    emptyState.style.display = state.filtered.length ? 'none' : 'block';
+  }
 
-  <div id="shareModal" class="modal-wrap">
-    <div class="modal">
-      <h4>Share item</h4>
-      <div class="field"><label>User email</label><input id="shareEmail" type="email" placeholder="colleague@company.com"></div>
-      <div class="actions">
-        <button id="shareCancel" class="btn">Cancel</button>
-        <button id="shareConfirm" class="btn primary">Share</button>
-      </div>
-    </div>
-  </div>
+  function applyFilter(q = '') {
+    const v = q.trim().toLowerCase();
+    state.filtered = v ? state.files.filter(f => f.name.toLowerCase().includes(v)) : [...state.files];
+    if (!state.filtered.find(f => f.id === state.selectedId)) setSelected(null);
+    render();
+  }
 
-  <div id="toast" class="toast"></div>
+  async function uploadToAws(file) {
+    const metaResp = await fetch(`${API_BASE}/upload-url`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name: file.name, type: file.type})
+    });
+    if (!metaResp.ok) throw new Error('Failed to get upload URL');
+    const { uploadUrl, key } = await metaResp.json();
 
-  <script>
-    // Replace with your backend API endpoint. Recommended with Cognito auth and S3 presigned URLs.
-    const API_BASE = '';
-    const USER_STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024;
+    const putResp = await fetch(uploadUrl, { method: 'PUT', headers: {'Content-Type': file.type || 'application/octet-stream'}, body: file });
+    if (!putResp.ok) throw new Error('S3 upload failed');
 
-    const state = {
-      mode: 'signin',
-      session: null,
-      files: [],
-      filtered: [],
-      selectedId: null
-    };
+    return { key };
+  }
 
-    const el = (id) => document.getElementById(id);
-    const toast = (msg) => {
-      const t = el('toast');
-      t.textContent = msg;
-      t.style.display = 'block';
-      clearTimeout(toast.timer);
-      toast.timer = setTimeout(() => t.style.display = 'none', 2600);
-    };
-
-    const usersKey = 'nebula_users';
-    const sessionKey = 'nebula_session';
-    const filesKey = (email) => `nebula_files_${email}`;
-
-    const readUsers = () => JSON.parse(localStorage.getItem(usersKey) || '[]');
-    const writeUsers = (users) => localStorage.setItem(usersKey, JSON.stringify(users));
-    const loadFiles = (email) => JSON.parse(localStorage.getItem(filesKey(email)) || '[]');
-    const saveFiles = () => localStorage.setItem(filesKey(state.session.email), JSON.stringify(state.files));
-
-    const fmtBytes = (bytes) => {
-      if (bytes === 0) return '0 B';
-      if (!bytes) return '-';
-      if (bytes < 1024) return `${bytes} B`;
-      if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
-      if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-      return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
-    };
-
-    function showAuth(mode) {
-      state.mode = mode;
-      el('signInTab').classList.toggle('active', mode === 'signin');
-      el('signUpTab').classList.toggle('active', mode === 'signup');
-      el('authSubmit').textContent = mode === 'signin' ? 'Sign In' : 'Create Account';
-    }
-
-    function updateStorageCard() {
-      const used = state.files.reduce((acc, f) => acc + (f.size || 0), 0);
-      const pct = Math.min(100, (used / USER_STORAGE_LIMIT_BYTES) * 100);
-      el('storageLabel').textContent = `${fmtBytes(used)} / ${fmtBytes(USER_STORAGE_LIMIT_BYTES)}`;
-      el('storageBar').style.width = `${pct}%`;
-      el('storageHint').textContent = `${(100 - pct).toFixed(1)}% available`;
-    }
-
-    function getSelected() { return state.files.find(f => f.id === state.selectedId); }
-
-    function setSelected(id) {
-      state.selectedId = id;
-      const selected = getSelected();
-      document.querySelectorAll('.item').forEach(card => card.classList.toggle('active', card.dataset.id === id));
-      el('deleteBtn').disabled = !selected;
-      el('downloadBtn').disabled = !selected || selected.type === 'folder';
-      el('shareBtn').disabled = !selected;
-      el('detailEmpty').classList.toggle('hidden', !!selected);
-      el('detailBox').classList.toggle('hidden', !selected);
-      if (!selected) return;
-      el('dName').textContent = selected.name;
-      el('dType').textContent = selected.type;
-      el('dSize').textContent = selected.type === 'folder' ? '-' : fmtBytes(selected.size);
-      el('dModified').textContent = selected.modified;
-      el('shareList').innerHTML = selected.sharedWith.length
-        ? selected.sharedWith.map(mail => `<span class="chip">${mail}</span>`).join('')
-        : '<span class="chip">Only you</span>';
-    }
-
-    function renderFiles() {
-      const grid = el('grid');
-      grid.innerHTML = '';
-      state.filtered.forEach(file => {
-        const div = document.createElement('div');
-        div.className = `item${file.id === state.selectedId ? ' active' : ''}`;
-        div.dataset.id = file.id;
-        const badge = file.type === 'folder' ? 'DIR' : 'FILE';
-        div.innerHTML = `<div class="item-type">${badge}</div><div class="item-name">${file.name}</div><div class="item-meta">${file.type === 'folder' ? `${file.itemCount || 0} items` : fmtBytes(file.size)}</div>`;
-        div.onclick = () => setSelected(file.id);
-        grid.appendChild(div);
-      });
-      el('emptyState').classList.toggle('hidden', state.filtered.length > 0);
-      updateStorageCard();
-    }
-
-    function applyFilter(value = '') {
-      const q = value.trim().toLowerCase();
-      state.filtered = q ? state.files.filter(f => f.name.toLowerCase().includes(q)) : [...state.files];
-      if (!state.filtered.some(f => f.id === state.selectedId)) setSelected(null);
-      renderFiles();
-    }
-
-    async function getPresignedUpload(file) {
-      const res = await fetch(`${API_BASE}/upload-url`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: file.name, contentType: file.type || 'application/octet-stream' })
-      });
-      if (!res.ok) throw new Error('Cannot get upload URL');
-      return res.json();
-    }
-
-    async function uploadFile(file, path = '') {
-      const used = state.files.reduce((acc, f) => acc + (f.size || 0), 0);
-      if (used + file.size > USER_STORAGE_LIMIT_BYTES) {
-        toast(`Storage limit reached, skipped ${file.name}`);
-        return;
-      }
-
-      let awsKey = null;
-      if (API_BASE) {
-        const { uploadUrl, key } = await getPresignedUpload(file);
-        const put = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
-        if (!put.ok) throw new Error('S3 upload failed');
-        awsKey = key;
-      }
-
-      state.files.unshift({
-        id: crypto.randomUUID(),
-        name: path ? `${path}/${file.name}` : file.name,
-        type: 'file',
-        size: file.size,
-        modified: new Date().toISOString().slice(0, 10),
-        awsKey,
-        sharedWith: [],
-        localBlob: API_BASE ? null : file
-      });
-    }
-
-    async function handleFileUpload(fileList, isFolder = false) {
-      const files = [...fileList];
-      if (!files.length) return;
+  async function handleUpload(files) {
+    if (!files.length) return;
+    for (const file of files) {
+      let key = null;
       try {
-        for (const file of files) {
-          const relPath = isFolder ? (file.webkitRelativePath || '').split('/').slice(0, -1).join('/') : '';
-          await uploadFile(file, relPath);
+        if (API_BASE) {
+          const res = await uploadToAws(file);
+          key = res.key;
         }
-        saveFiles();
-        applyFilter(el('searchInput').value);
-        toast(`Uploaded ${files.length} item(s)`);
-      } catch (err) {
-        toast('Upload failed');
+        state.files.unshift({
+          id: crypto.randomUUID(), name: file.name, type: 'file', size: file.size,
+          modified: new Date().toISOString().slice(0, 10), awsKey: key, localFile: API_BASE ? null : file
+        });
+      } catch (e) {
+        toast(`Upload failed: ${file.name}`);
       }
     }
+    applyFilter(searchInput.value);
+    toast('Upload complete');
+  }
 
-    async function downloadSelected() {
-      const f = getSelected();
-      if (!f || f.type === 'folder') return;
-      try {
-        if (API_BASE && f.awsKey) {
-          const res = await fetch(`${API_BASE}/download-url?key=${encodeURIComponent(f.awsKey)}`);
-          if (!res.ok) throw new Error('Cannot get download URL');
-          const { downloadUrl } = await res.json();
-          window.open(downloadUrl, '_blank');
-        } else if (f.localBlob) {
-          const url = URL.createObjectURL(f.localBlob);
-          const a = document.createElement('a');
-          a.href = url; a.download = f.name.split('/').pop(); a.click();
-          URL.revokeObjectURL(url);
-        }
-        toast('Download started');
-      } catch {
-        toast('Download failed');
-      }
-    }
-
-    function createFolder() {
-      const folderName = prompt('Folder name', 'New Folder');
-      if (!folderName) return;
-      state.files.unshift({
-        id: crypto.randomUUID(),
-        name: folderName,
-        type: 'folder',
-        itemCount: 0,
-        size: 0,
-        modified: new Date().toISOString().slice(0, 10),
-        sharedWith: []
-      });
-      saveFiles();
-      applyFilter(el('searchInput').value);
-      toast('Folder created');
-    }
-
-    function deleteSelected() {
-      const selected = getSelected();
-      if (!selected) return;
-      state.files = state.files.filter(f => f.id !== selected.id);
-      state.selectedId = null;
-      saveFiles();
-      applyFilter(el('searchInput').value);
-      toast('Item deleted');
-    }
-
-    function openShareModal() {
-      const selected = getSelected();
-      if (!selected) return;
-      el('shareEmail').value = '';
-      el('shareModal').style.display = 'flex';
-    }
-
-    function shareSelected() {
-      const selected = getSelected();
-      const email = el('shareEmail').value.trim().toLowerCase();
-      if (!selected || !email) return;
-      if (!selected.sharedWith.includes(email)) selected.sharedWith.push(email);
-      saveFiles();
-      setSelected(selected.id);
-      el('shareModal').style.display = 'none';
-      toast('Item shared');
-    }
-
-    function signOut() {
-      localStorage.removeItem(sessionKey);
-      state.session = null;
-      state.files = [];
-      state.filtered = [];
-      state.selectedId = null;
-      el('appView').classList.add('hidden');
-      el('authView').classList.remove('hidden');
-      showAuth('signin');
-      toast('Signed out');
-    }
-
-    function mountSession(session) {
-      state.session = session;
-      state.files = loadFiles(session.email).map(x => ({ ...x, localBlob: null }));
-      state.filtered = [];
-      state.selectedId = null;
-
-      el('authView').classList.add('hidden');
-      el('appView').classList.remove('hidden');
-      el('userEmail').textContent = session.email;
-      el('avatar').textContent = session.email.slice(0, 2).toUpperCase();
-      el('backendLabel').textContent = API_BASE ? `AWS (${API_BASE})` : 'Local mode';
-      applyFilter();
-    }
-
-    function submitAuth() {
-      const email = el('authEmail').value.trim().toLowerCase();
-      const password = el('authPassword').value;
-      if (!email || password.length < 6) {
-        toast('Provide a valid email and password (6+ chars)');
-        return;
-      }
-
-      const users = readUsers();
-      const existing = users.find(u => u.email === email);
-
-      if (state.mode === 'signup') {
-        if (existing) {
-          toast('Account already exists');
-          return;
-        }
-        users.push({ email, password });
-        writeUsers(users);
-        localStorage.setItem(sessionKey, JSON.stringify({ email }));
-        mountSession({ email });
-        toast('Account created');
+  async function downloadSelected() {
+    const f = getSelected();
+    if (!f || f.type === 'folder') return;
+    try {
+      if (API_BASE && f.awsKey) {
+        const r = await fetch(`${API_BASE}/download-url?key=${encodeURIComponent(f.awsKey)}`);
+        if (!r.ok) throw new Error('No download URL');
+        const { downloadUrl } = await r.json();
+        window.open(downloadUrl, '_blank');
+      } else if (f.localFile) {
+        const url = URL.createObjectURL(f.localFile);
+        const a = document.createElement('a');
+        a.href = url; a.download = f.name; a.click();
+        URL.revokeObjectURL(url);
       } else {
-        if (!existing || existing.password !== password) {
-          toast('Invalid credentials');
-          return;
-        }
-        localStorage.setItem(sessionKey, JSON.stringify({ email }));
-        mountSession({ email });
-        toast('Signed in');
+        throw new Error('File source missing');
       }
+      toast('Download started');
+    } catch {
+      toast('Download failed');
     }
+  }
 
-    el('signInTab').onclick = () => showAuth('signin');
-    el('signUpTab').onclick = () => showAuth('signup');
-    el('authSubmit').onclick = submitAuth;
-    el('signOutBtn').onclick = signOut;
-    el('searchInput').oninput = (e) => applyFilter(e.target.value);
+  function deleteSelected() {
+    const f = getSelected();
+    if (!f) return;
+    state.files = state.files.filter(x => x.id !== f.id);
+    setSelected(null);
+    applyFilter(searchInput.value);
+    toast(`Deleted ${f.name}`);
+  }
 
-    el('uploadFilesBtn').onclick = () => el('fileInput').click();
-    el('uploadFolderBtn').onclick = () => el('folderInput').click();
-    el('fileInput').onchange = (e) => handleFileUpload(e.target.files, false);
-    el('folderInput').onchange = (e) => handleFileUpload(e.target.files, true);
-    el('newFolderBtn').onclick = createFolder;
-    el('downloadBtn').onclick = downloadSelected;
-    el('deleteBtn').onclick = deleteSelected;
-    el('shareBtn').onclick = openShareModal;
+  function addFolder() {
+    const name = prompt('Folder name', 'New Folder');
+    if (!name) return;
+    state.files.unshift({ id: crypto.randomUUID(), name, type: 'folder', size: 0, modified: new Date().toISOString().slice(0, 10) });
+    applyFilter(searchInput.value);
+    toast('Folder created');
+  }
 
-    el('shareCancel').onclick = () => el('shareModal').style.display = 'none';
-    el('shareConfirm').onclick = shareSelected;
-    el('shareModal').onclick = (e) => { if (e.target === el('shareModal')) el('shareModal').style.display = 'none'; };
+  uploadBtn.onclick = () => filePicker.click();
+  filePicker.onchange = (e) => handleUpload([...e.target.files]);
+  deleteBtn.onclick = deleteSelected;
+  downloadBtn.onclick = downloadSelected;
+  newFolderBtn.onclick = addFolder;
+  searchInput.oninput = (e) => applyFilter(e.target.value);
 
-    const existingSession = JSON.parse(localStorage.getItem(sessionKey) || 'null');
-    if (existingSession?.email) {
-      mountSession(existingSession);
-    } else {
-      showAuth('signin');
-    }
-  </script>
+  backendLabel.textContent = API_BASE ? `AWS mode (${API_BASE})` : 'Local mode (set API_BASE for AWS S3)';
+  applyFilter();
+</script>
 </body>
 </html>
