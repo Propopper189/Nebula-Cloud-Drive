@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NebulaCloud Drive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <section id="authPage" class="page auth-page">
+    <div class="auth-card">
+      <h1>NebulaCloud Drive</h1>
+      <p class="sub">Secure access to your personal drive.</p>
+      <div class="tabs">
+        <button id="tabSignin" class="tab active">Sign In</button>
+        <button id="tabSignup" class="tab">Sign Up</button>
+      </div>
+      <label>Email</label>
+      <input id="authEmail" type="email" placeholder="name@company.com" />
+      <label>Password</label>
+      <input id="authPassword" type="password" placeholder="At least 6 characters" />
+      <button id="authSubmit" class="btn primary">Sign In</button>
+      <p id="authMessage" class="hint"></p>
+    </div>
+  </section>
+
+  <section id="drivePage" class="page hidden">
+    <header>
+      <h2>NebulaCloud Drive</h2>
+      <input id="searchInput" placeholder="Search files and folders" />
+      <span id="currentUser"></span>
+      <button id="signOutBtn" class="btn">Sign Out</button>
+    </header>
+
+    <main>
+      <aside>
+        <button data-section="drive" class="side-btn active">My Drive</button>
+        <button data-section="trash" class="side-btn">Trash</button>
+        <div class="storage">
+          <div>Storage</div>
+          <strong id="storageText">0 MB / 5 GB</strong>
+          <div class="bar"><div id="storageBar"></div></div>
+        </div>
+      </aside>
+
+      <section class="content">
+        <div class="toolbar">
+          <button id="uploadFileBtn" class="btn primary">Upload Files</button>
+          <button id="uploadFolderBtn" class="btn">Upload Folder</button>
+          <button id="newFolderBtn" class="btn">New Folder</button>
+          <button id="shareBtn" class="btn" disabled>Share</button>
+          <button id="trashBtn" class="btn" disabled>Move to Trash</button>
+        </div>
+        <input id="fileInput" type="file" multiple hidden>
+        <input id="folderInput" type="file" webkitdirectory directory multiple hidden>
+        <div id="empty" class="empty">No items in this section.</div>
+        <div id="grid" class="grid"></div>
+      </section>
+
+      <section class="details">
+        <h3>Details</h3>
+        <div id="detailsEmpty" class="hint">Select an item to view details.</div>
+        <div id="detailsBox" class="hidden">
+          <p><strong id="dName"></strong></p>
+          <p>Type: <span id="dType"></span></p>
+          <p>Size: <span id="dSize"></span></p>
+          <p>Modified: <span id="dModified"></span></p>
+          <p>Shared with: <span id="dShared"></span></p>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <div id="shareModal" class="modal hidden">
+    <div class="modal-card">
+      <h4>Share Item</h4>
+      <input id="shareEmail" type="email" placeholder="teammate@company.com" />
+      <div class="modal-actions">
+        <button id="cancelShare" class="btn">Cancel</button>
+        <button id="confirmShare" class="btn primary">Share</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
