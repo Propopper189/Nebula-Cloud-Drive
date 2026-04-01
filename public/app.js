@@ -1,5 +1,5 @@
 const API = '/api';
-const LIMIT = 5 * 1024 * 1024 * 1024;
+const LIMIT = 10 * 1024 * 1024 * 1024;
 const IS_FILE_MODE = location.protocol === 'file:';
 
 const state = {
@@ -131,6 +131,8 @@ function localApi(path, options = {}) {
     const id = path.split('/')[2];
     const item = files.find((f) => f.id === id);
     if (!item) throw new Error('File not found.');
+    if (!users.some((u) => u.email === body.email)) throw new Error('Target user does not exist.');
+    if (body.email === sessionEmail) throw new Error('You already own this item.');
     if (!item.sharedWith.includes(body.email)) item.sharedWith.push(body.email);
     saveFiles(files);
     return item;
@@ -258,12 +260,18 @@ async function loadDrive() {
 }
 
 async function uploadRecords(fileList, isFolder = false) {
+  let used = state.files.filter((f) => !f.trashedAt).reduce((a, b) => a + (b.size || 0), 0);
   for (const file of [...fileList]) {
+    if (used + file.size > LIMIT) {
+      toast(`Cannot upload ${file.name}: exceeds 10 GB storage limit`);
+      continue;
+    }
     const parentPath = isFolder ? (file.webkitRelativePath || '').split('/').slice(0, -1).join('/') : '';
     await api('/files', {
       method: 'POST',
       body: JSON.stringify({ name: file.name, type: 'file', size: file.size, parentPath, sharedWith: [] }),
     });
+    used += file.size;
   }
   await loadDrive();
   toast('Upload completed');
@@ -303,10 +311,14 @@ async function confirmShare() {
   const item = getSelected();
   const email = $('shareEmail').value.trim().toLowerCase();
   if (!item || !email) return;
-  await api(`/files/${item.id}/share`, { method: 'PATCH', body: JSON.stringify({ email }) });
-  $('shareModal').classList.add('hidden');
-  await loadDrive();
-  toast('Item shared');
+  try {
+    await api(`/files/${item.id}/share`, { method: 'PATCH', body: JSON.stringify({ email }) });
+    $('shareModal').classList.add('hidden');
+    await loadDrive();
+    toast('Item shared successfully');
+  } catch (error) {
+    toast(error.message);
+  }
 }
 
 function wire() {

@@ -5,6 +5,7 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const STORAGE_LIMIT_BYTES = 10 * 1024 * 1024 * 1024;
 
 app.use(cors());
 app.use(express.json());
@@ -92,6 +93,10 @@ app.post('/api/files', auth, (req, res) => {
   if (!name || !type) return res.status(400).json({ message: 'name and type are required.' });
 
   const records = ensureUserFiles(req.userEmail);
+  const used = records.filter((r) => !r.trashedAt).reduce((acc, item) => acc + (item.size || 0), 0);
+  if (used + Number(size || 0) > STORAGE_LIMIT_BYTES) {
+    return res.status(413).json({ message: 'Storage limit exceeded. Upgrade your plan or free up space.' });
+  }
   const item = {
     id: crypto.randomUUID(),
     name: parentPath ? `${parentPath}/${name}` : name,
@@ -116,6 +121,8 @@ app.patch('/api/files/:id/trash', auth, (req, res) => {
 app.patch('/api/files/:id/share', auth, (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ message: 'Share email is required.' });
+  if (!users.has(email)) return res.status(404).json({ message: 'Target user does not exist.' });
+  if (email === req.userEmail) return res.status(400).json({ message: 'You already own this item.' });
 
   const records = ensureUserFiles(req.userEmail);
   const file = records.find((f) => f.id === req.params.id);
