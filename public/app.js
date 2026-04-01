@@ -1,5 +1,6 @@
 const API = '/api';
 const LIMIT = 5 * 1024 * 1024 * 1024;
+const IS_FILE_MODE = location.protocol === 'file:';
 
 const state = {
   mode: 'signin',
@@ -8,6 +9,12 @@ const state = {
   files: [],
   section: 'drive',
   selectedId: null,
+};
+
+const localKey = {
+  users: 'nebula_local_users',
+  session: 'nebula_local_session',
+  files: (email) => `nebula_local_files_${email}`,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -22,12 +29,99 @@ function toast(msg) {
 }
 
 async function api(path, options = {}) {
+  if (IS_FILE_MODE) return localApi(path, options);
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
-  const res = await fetch(`${API}${path}`, { ...options, headers });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.message || 'Request failed');
-  return body;
+  try {
+    const res = await fetch(`${API}${path}`, { ...options, headers });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.message || 'Request failed');
+    return body;
+  } catch (error) {
+    // Graceful fallback when backend is not running.
+    return localApi(path, options);
+  }
+}
+
+function readJson(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
+  catch { return fallback; }
+}
+
+function localApi(path, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  const body = options.body ? JSON.parse(options.body) : {};
+  const users = readJson(localKey.users, []);
+  const localSession = readJson(localKey.session, null);
+  const sessionEmail = state.user || localSession?.email;
+  const files = sessionEmail ? readJson(localKey.files(sessionEmail), []) : [];
+
+  const saveUsers = (value) => localStorage.setItem(localKey.users, JSON.stringify(value));
+  const saveFiles = (value) => sessionEmail && localStorage.setItem(localKey.files(sessionEmail), JSON.stringify(value));
+
+  if (path === '/auth/signup' && method === 'POST') {
+    if (users.some((u) => u.email === body.email)) throw new Error('Account already exists.');
+    users.push({ email: body.email, password: body.password });
+    saveUsers(users);
+    localStorage.setItem(localKey.session, JSON.stringify({ email: body.email, token: crypto.randomUUID() }));
+    return { email: body.email, token: crypto.randomUUID() };
+  }
+
+  if (path === '/auth/signin' && method === 'POST') {
+    const user = users.find((u) => u.email === body.email && u.password === body.password);
+    if (!user) throw new Error('Invalid credentials.');
+    const token = crypto.randomUUID();
+    localStorage.setItem(localKey.session, JSON.stringify({ email: body.email, token }));
+    return { email: body.email, token };
+  }
+
+  if (path === '/auth/signout' && method === 'POST') {
+    localStorage.removeItem(localKey.session);
+    return { ok: true };
+  }
+
+  if (path === '/files' && method === 'GET') {
+    const maxAgeMs = 15 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const clean = files.filter((item) => !(item.trashedAt && now - new Date(item.trashedAt).getTime() > maxAgeMs));
+    saveFiles(clean);
+    return { files: clean };
+  }
+
+  if (path === '/files' && method === 'POST') {
+    const item = {
+      id: crypto.randomUUID(),
+      name: body.parentPath ? `${body.parentPath}/${body.name}` : body.name,
+      type: body.type,
+      size: body.size || 0,
+      modified: new Date().toISOString().slice(0, 10),
+      sharedWith: body.sharedWith || [],
+      trashedAt: null,
+    };
+    files.unshift(item);
+    saveFiles(files);
+    return item;
+  }
+
+  if (path.includes('/trash') && method === 'PATCH') {
+    const id = path.split('/')[2];
+    const item = files.find((f) => f.id === id);
+    if (!item) throw new Error('File not found.');
+    item.trashedAt = new Date().toISOString();
+    saveFiles(files);
+    return item;
+  }
+
+  if (path.includes('/share') && method === 'PATCH') {
+    const id = path.split('/')[2];
+    const item = files.find((f) => f.id === id);
+    if (!item) throw new Error('File not found.');
+    if (!item.sharedWith.includes(body.email)) item.sharedWith.push(body.email);
+    saveFiles(files);
+    return item;
+  }
+
+  throw new Error('Operation not available.');
 }
 
 function showAuth(mode = 'signin') {
@@ -197,5 +291,13 @@ function wire() {
 }
 
 wire();
+if (!state.token && IS_FILE_MODE) {
+  const localSession = readJson(localKey.session, null);
+  if (localSession?.token && localSession?.email) {
+    state.token = localSession.token;
+    state.user = localSession.email;
+  }
+}
+
 if (state.token && state.user) loadDrive().catch(() => signOut());
 else showAuth('signin');
