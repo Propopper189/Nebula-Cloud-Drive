@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NebulaCloud Drive</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:#0a0b14; --bg2:#0f1020; --surface:#181a30; --surface2:#1e2040; --surface3:#252850;
+      --border:rgba(120,130,255,.12); --border2:rgba(120,130,255,.22); --accent:#7c6fff;
+      --accent2:#a78bfa; --teal:#2dd4c0; --pink:#f472b6; --text1:#f0f0ff; --text2:#a0a8cc; --text3:#60688a;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text1);min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+    .bg-orb{position:fixed;border-radius:50%;pointer-events:none;filter:blur(80px);z-index:0}
+    .orb1{width:600px;height:600px;top:-200px;left:-100px;background:radial-gradient(circle,rgba(124,111,255,.2),transparent 70%)}
+    .orb2{width:500px;height:500px;bottom:-100px;right:-50px;background:radial-gradient(circle,rgba(45,212,192,.15),transparent 70%)}
+    nav{position:sticky;top:0;z-index:100;background:rgba(10,11,20,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);height:58px;display:flex;align-items:center;padding:0 20px;gap:16px}
+    .logo{display:flex;align-items:center;gap:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:17px;color:var(--text1);text-decoration:none}
+    .logo span{background:linear-gradient(135deg,var(--accent2),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .search-bar{flex:1;max-width:520px;position:relative;margin:0 auto}
+    .search-bar input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:8px 16px 8px 40px;color:var(--text1);font-size:14px;outline:none}
+    .search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text3)}
+    .app{display:flex;flex:1;position:relative;z-index:1}
+    aside{width:230px;flex-shrink:0;padding:20px 12px;border-right:1px solid var(--border);background:rgba(15,16,32,.6);display:flex;flex-direction:column;gap:6px;position:sticky;top:58px;height:calc(100vh - 58px);overflow-y:auto}
+    .sidebar-section{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:8px 10px 4px}
+    .sidebar-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;font-size:13.5px;color:var(--text2);cursor:pointer}
+    .sidebar-item:hover,.sidebar-item.active{background:var(--surface2);color:var(--text1)}
+    main{flex:1;padding:24px 28px;overflow:auto}
+    .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+    .toolbar h2{font-family:'Syne',sans-serif;font-size:20px;margin-right:auto}
+    .toolbar-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-size:13px;cursor:pointer}
+    .toolbar-btn.primary{background:linear-gradient(135deg,var(--accent),rgba(45,212,192,.8));border:none;color:#fff;font-weight:600}
+    .file-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+    .file-list{display:none}
+    .file-list.active{display:block}
+    .file-grid.hidden{display:none}
+    .file-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px;cursor:pointer;position:relative}
+    .file-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+    .file-card.selected{border-color:var(--accent)}
+    .file-thumb{width:100%;aspect-ratio:4/3;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:10px}
+    .file-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .file-meta{font-size:11px;color:var(--text3);margin-top:3px}
+    .list-header,.list-item{display:grid;grid-template-columns:2fr 1fr 1fr 80px;gap:12px;padding:10px 12px}
+    .list-header{font-size:12px;color:var(--text3);border-bottom:1px solid var(--border)}
+    .list-item{border-radius:10px;font-size:13px;cursor:pointer}
+    .list-item:hover{background:var(--surface)}
+    .right-panel{width:0;overflow:hidden;transition:width .3s;border-left:1px solid transparent}
+    .right-panel.open{width:280px;border-left-color:var(--border)}
+    .panel-inner{width:280px;padding:20px 16px}
+    .panel-preview{width:100%;aspect-ratio:4/3;background:var(--surface2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:52px;margin-bottom:16px}
+    .toast-container{position:fixed;bottom:20px;right:20px;z-index:700;display:flex;flex-direction:column;gap:8px}
+    .toast{background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:12px 16px;font-size:13px;transform:translateX(120%);transition:transform .25s}
+    .toast.show{transform:translateX(0)}
+    @media(max-width:768px){aside{display:none}.right-panel.open{width:100%;position:fixed;right:0;top:58px;background:var(--bg2);}.panel-inner{width:100%}}
+  </style>
+</head>
+<body>
+  <div class="bg-orb orb1"></div><div class="bg-orb orb2"></div>
+  <nav>
+    <a class="logo" href="#"><span>NebulaCloud</span> Drive</a>
+    <div class="search-bar"><span class="search-icon">🔎</span><input id="searchInput" type="text" placeholder="Search files, folders, or people…"></div>
+  </nav>
+  <div class="app">
+    <aside>
+      <div class="sidebar-section">Navigation</div>
+      <div class="sidebar-item active" data-nav="My Drive">My Drive</div>
+      <div class="sidebar-item" data-nav="Recent">Recent</div>
+      <div class="sidebar-item" data-nav="Shared">Shared with me</div>
+      <div class="sidebar-item" data-nav="Trash">Trash</div>
+    </aside>
+    <main>
+      <div class="toolbar">
+        <h2 id="pageTitle">My Drive</h2>
+        <button class="toolbar-btn primary" id="newFolderBtn">New Folder</button>
+        <button class="toolbar-btn" id="toggleViewBtn">List View</button>
+      </div>
+      <div class="file-grid" id="fileGrid"></div>
+      <div class="file-list" id="fileList"><div class="list-header"><div>Name</div><div>Owner</div><div>Modified</div><div>Size</div></div><div id="listItems"></div></div>
+    </main>
+    <div class="right-panel" id="rightPanel"><div class="panel-inner"><div class="panel-preview" id="panelPreview">📄</div><div id="panelFilename">Select a file</div></div></div>
+  </div>
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    const AWS_WEBSOCKET_URL = ""; // Put your API Gateway WebSocket URL here, e.g. wss://xxxx.execute-api.us-east-1.amazonaws.com/prod
+
+    const state = {
+      view: "grid",
+      files: [
+        { name:"Q3 Financial Report.pdf", type:"pdf", size:"4.2 MB", modified:"2026-04-01", owner:"You", icon:"📊", color:"rgba(124,111,255,.15)" },
+        { name:"Brand Guidelines.pdf", type:"pdf", size:"18.7 MB", modified:"2026-03-31", owner:"Sarah K.", icon:"🎨", color:"rgba(45,212,192,.12)" },
+        { name:"Product Roadmap.pptx", type:"presentation", size:"6.1 MB", modified:"2026-04-01", owner:"You", icon:"🗺️", color:"rgba(244,114,182,.12)" },
+      ],
+      filtered: []
+    };
+
+    let socket = null;
+    function connectRealtime() {
+      if (!AWS_WEBSOCKET_URL) return;
+      socket = new WebSocket(AWS_WEBSOCKET_URL);
+      socket.onopen = () => toast("Connected to AWS realtime sync", "success");
+      socket.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "file_added" && msg.file) {
+            state.files.unshift(msg.file);
+            applyFilter(document.getElementById("searchInput").value);
+          }
+        } catch { /* ignore invalid messages */ }
+      };
+      socket.onclose = () => toast("Realtime disconnected", "info");
+    }
+
+    function publish(eventType, payload) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: eventType, ...payload }));
+      }
+    }
+
+    function render() {
+      const files = state.filtered;
+      const grid = document.getElementById("fileGrid");
+      const list = document.getElementById("listItems");
+      grid.innerHTML = "";
+      list.innerHTML = "";
+
+      files.forEach((f, i) => {
+        const card = document.createElement("div");
+        card.className = "file-card";
+        card.innerHTML = `<div class="file-thumb" style="background:${f.color}">${f.icon}</div><div class="file-name">${f.name}</div><div class="file-meta">${f.type} · ${f.size}</div>`;
+        card.onclick = () => selectFile(i);
+        grid.appendChild(card);
+
+        const row = document.createElement("div");
+        row.className = "list-item";
+        row.innerHTML = `<div>${f.icon} ${f.name}</div><div>${f.owner}</div><div>${f.modified}</div><div>${f.size}</div>`;
+        row.onclick = () => selectFile(i);
+        list.appendChild(row);
+      });
+    }
+
+    function selectFile(index) {
+      const f = state.filtered[index];
+      if (!f) return;
+      document.getElementById("panelPreview").textContent = f.icon;
+      document.getElementById("panelFilename").textContent = f.name;
+      document.getElementById("rightPanel").classList.add("open");
+    }
+
+    function applyFilter(query) {
+      const q = query.trim().toLowerCase();
+      state.filtered = q ? state.files.filter(f => f.name.toLowerCase().includes(q)) : [...state.files];
+      render();
+    }
+
+    function addFolder() {
+      const folder = { name:`New Folder ${state.files.length + 1}`, type:"folder", size:"0 items", modified:new Date().toISOString().slice(0,10), owner:"You", icon:"📁", color:"rgba(124,111,255,.12)" };
+      state.files.unshift(folder);
+      applyFilter(document.getElementById("searchInput").value);
+      publish("file_added", { file: folder });
+      toast(`Folder \"${folder.name}\" created`, "success");
+    }
+
+    function toggleView() {
+      state.view = state.view === "grid" ? "list" : "grid";
+      document.getElementById("fileGrid").classList.toggle("hidden", state.view === "list");
+      document.getElementById("fileList").classList.toggle("active", state.view === "list");
+      document.getElementById("toggleViewBtn").textContent = state.view === "list" ? "Grid View" : "List View";
+    }
+
+    function toast(message, type) {
+      const el = document.createElement("div");
+      el.className = "toast";
+      el.textContent = `${type === "success" ? "✅" : "ℹ️"} ${message}`;
+      document.getElementById("toastContainer").appendChild(el);
+      requestAnimationFrame(() => el.classList.add("show"));
+      setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 280); }, 2200);
+    }
+
+    document.getElementById("searchInput").addEventListener("input", (e) => applyFilter(e.target.value));
+    document.getElementById("newFolderBtn").addEventListener("click", addFolder);
+    document.getElementById("toggleViewBtn").addEventListener("click", toggleView);
+    document.querySelectorAll(".sidebar-item").forEach(el => el.addEventListener("click", () => {
+      document.querySelectorAll(".sidebar-item").forEach(x => x.classList.remove("active"));
+      el.classList.add("active");
+      document.getElementById("pageTitle").textContent = el.dataset.nav;
+    }));
+
+    applyFilter("");
+    connectRealtime();
+  </script>
+</body>
+</html>
