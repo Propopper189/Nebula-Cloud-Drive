@@ -74,6 +74,19 @@ app.get('/api/files', auth, (req, res) => {
   res.json({ files });
 });
 
+app.get('/api/files/shared', auth, (req, res) => {
+  const shared = [];
+  for (const [ownerEmail, records] of userFiles.entries()) {
+    if (ownerEmail === req.userEmail) continue;
+    for (const item of records) {
+      if (!item.trashedAt && Array.isArray(item.sharedWith) && item.sharedWith.includes(req.userEmail)) {
+        shared.push({ ...item, owner: ownerEmail });
+      }
+    }
+  }
+  res.json({ files: shared });
+});
+
 app.post('/api/files', auth, (req, res) => {
   const { name, type, size = 0, parentPath = '', sharedWith = [] } = req.body || {};
   if (!name || !type) return res.status(400).json({ message: 'name and type are required.' });
@@ -110,6 +123,17 @@ app.patch('/api/files/:id/share', auth, (req, res) => {
 
   if (!file.sharedWith.includes(email)) file.sharedWith.push(email);
   res.json(file);
+});
+
+app.delete('/api/files/:id', auth, (req, res) => {
+  const records = ensureUserFiles(req.userEmail);
+  const index = records.findIndex((f) => f.id === req.params.id);
+  if (index === -1) return res.status(404).json({ message: 'File not found.' });
+  if (!records[index].trashedAt) {
+    return res.status(400).json({ message: 'Only trashed files can be permanently deleted.' });
+  }
+  records.splice(index, 1);
+  res.json({ ok: true });
 });
 
 app.get('*', (_, res) => {

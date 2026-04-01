@@ -7,6 +7,7 @@ const state = {
   token: localStorage.getItem('nebula_token') || '',
   user: localStorage.getItem('nebula_user') || '',
   files: [],
+  sharedFiles: [],
   section: 'drive',
   selectedId: null,
 };
@@ -88,6 +89,20 @@ function localApi(path, options = {}) {
     return { files: clean };
   }
 
+  if (path === '/files/shared' && method === 'GET') {
+    const shared = [];
+    for (const user of users) {
+      if (user.email === sessionEmail) continue;
+      const ownerFiles = readJson(localKey.files(user.email), []);
+      ownerFiles.forEach((item) => {
+        if (!item.trashedAt && item.sharedWith?.includes(sessionEmail)) {
+          shared.push({ ...item, owner: user.email });
+        }
+      });
+    }
+    return { files: shared };
+  }
+
   if (path === '/files' && method === 'POST') {
     const item = {
       id: crypto.randomUUID(),
@@ -119,6 +134,16 @@ function localApi(path, options = {}) {
     if (!item.sharedWith.includes(body.email)) item.sharedWith.push(body.email);
     saveFiles(files);
     return item;
+  }
+
+  if (path.startsWith('/files/') && method === 'DELETE') {
+    const id = path.split('/')[2];
+    const index = files.findIndex((f) => f.id === id);
+    if (index === -1) throw new Error('File not found.');
+    if (!files[index].trashedAt) throw new Error('Only trashed files can be permanently deleted.');
+    files.splice(index, 1);
+    saveFiles(files);
+    return { ok: true };
   }
 
   throw new Error('Operation not available.');
@@ -164,19 +189,26 @@ async function signOut() {
 }
 
 function currentList() {
-  const scoped = state.files.filter((f) => state.section === 'trash' ? !!f.trashedAt : !f.trashedAt);
+  const source = state.section === 'shared'
+    ? state.sharedFiles
+    : state.files.filter((f) => state.section === 'trash' ? !!f.trashedAt : !f.trashedAt);
+  const scoped = source;
   const q = $('searchInput').value.trim().toLowerCase();
   return q ? scoped.filter((f) => f.name.toLowerCase().includes(q)) : scoped;
 }
 
-function getSelected() { return state.files.find((f) => f.id === state.selectedId); }
+function getSelected() {
+  const current = currentList();
+  return current.find((f) => f.id === state.selectedId);
+}
 
 function renderDetails() {
   const item = getSelected();
   $('detailsEmpty').classList.toggle('hidden', !!item);
   $('detailsBox').classList.toggle('hidden', !item);
-  $('shareBtn').disabled = !item || state.section === 'trash';
-  $('trashBtn').disabled = !item || state.section === 'trash';
+  $('shareBtn').disabled = !item || state.section !== 'drive';
+  $('trashBtn').disabled = !item || state.section !== 'drive';
+  $('deleteForeverBtn').disabled = !item || state.section !== 'trash';
   if (!item) return;
   $('dName').textContent = item.name;
   $('dType').textContent = item.type;
@@ -206,11 +238,17 @@ function renderGrid() {
     grid.appendChild(card);
   }
   renderStorage();
+  const readonly = state.section === 'shared';
+  $('uploadFileBtn').disabled = readonly;
+  $('uploadFolderBtn').disabled = readonly;
+  $('newFolderBtn').disabled = readonly;
 }
 
 async function loadDrive() {
   const response = await api('/files');
+  const shared = await api('/files/shared');
   state.files = response.files;
+  state.sharedFiles = shared.files;
   state.selectedId = null;
   $('currentUser').textContent = state.user;
   $('authPage').classList.add('hidden');
@@ -247,6 +285,14 @@ async function moveToTrash() {
   toast('Moved to Trash');
 }
 
+async function deleteForever() {
+  const item = getSelected();
+  if (!item || state.section !== 'trash') return;
+  await api(`/files/${item.id}`, { method: 'DELETE' });
+  await loadDrive();
+  toast('Deleted permanently');
+}
+
 function openShare() {
   if (!getSelected()) return;
   $('shareEmail').value = '';
@@ -275,6 +321,7 @@ function wire() {
   $('folderInput').onchange = (e) => uploadRecords(e.target.files, true);
   $('newFolderBtn').onclick = createFolder;
   $('trashBtn').onclick = moveToTrash;
+  $('deleteForeverBtn').onclick = deleteForever;
   $('shareBtn').onclick = openShare;
   $('cancelShare').onclick = () => $('shareModal').classList.add('hidden');
   $('confirmShare').onclick = confirmShare;
