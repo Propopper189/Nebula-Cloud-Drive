@@ -273,6 +273,15 @@ async function loadDrive() {
 async function uploadRecords(fileList, isFolder = false) {
   let used = state.files.filter((f) => !f.trashedAt).reduce((a, b) => a + (b.size || 0), 0);
   let uploadedCount = 0;
+  if (isFolder && fileList.length) {
+    const rootFolderName = (fileList[0].webkitRelativePath || '').split('/')[0];
+    if (rootFolderName && !state.files.some((f) => f.type === 'folder' && f.name === rootFolderName && !f.trashedAt)) {
+      await api('/files', {
+        method: 'POST',
+        body: JSON.stringify({ name: rootFolderName, type: 'folder', size: 0, sharedWith: [] }),
+      });
+    }
+  }
   for (const file of [...fileList]) {
     if (used + file.size > LIMIT) {
       toast(`Cannot upload ${file.name}: exceeds 10 GB storage limit`);
@@ -395,6 +404,8 @@ function wire() {
   $('signOutBtn').onclick = signOut;
   $('searchInput').oninput = renderGrid;
   $('uploadFileBtn').onclick = () => $('fileInput').click();
+  const quickNew = $('newQuickBtn');
+  if (quickNew) quickNew.onclick = () => $('fileInput').click();
   $('uploadFolderBtn').onclick = () => $('folderInput').click();
   $('fileInput').onchange = (e) => uploadRecords(e.target.files, false);
   $('folderInput').onchange = (e) => uploadRecords(e.target.files, true);
