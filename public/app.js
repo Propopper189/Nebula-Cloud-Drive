@@ -44,8 +44,7 @@ async function api(path, options = {}) {
     if (!res.ok) throw new Error(body.message || 'Request failed');
     return body;
   } catch (error) {
-    const networkError = error instanceof TypeError || /fetch/i.test(error.message);
-    if (networkError) return localApi(path, options);
+    if (IS_FILE_MODE) return localApi(path, options);
     throw error;
   }
 }
