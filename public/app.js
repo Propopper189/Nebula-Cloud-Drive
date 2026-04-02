@@ -500,11 +500,23 @@ async function confirmShare() {
 }
 
 async function deleteAccount() {
+  const password = $('accountPassword').value;
+  if (!password) {
+    toast('Enter your password to delete account.');
+    return;
+  }
   const sure = confirm('Delete your account and all files permanently? This cannot be undone.');
   if (!sure) return;
-  await api('/account', { method: 'DELETE' });
-  toast('Account deleted.');
-  await signOut();
+
+  try {
+    await api('/account', { method: 'DELETE', body: JSON.stringify({ password }) });
+    $('accountPassword').value = '';
+    $('accountModal').classList.add('hidden');
+    toast('Account deleted.');
+    await signOut();
+  } catch (error) {
+    toast(error.message || 'Password verification failed.');
+  }
 }
 
 function wire() {
@@ -533,9 +545,10 @@ function wire() {
   $('accountMenuBtn').onclick = () => $('accountMenu').classList.toggle('hidden');
   $('openAccountBtn').onclick = () => {
     $('accountMenu').classList.add('hidden');
+    $('accountPassword').value = '';
     $('accountModal').classList.remove('hidden');
   };
-  $('closeAccountModal').onclick = () => $('accountModal').classList.add('hidden');
+  $('closeAccountModal').onclick = () => { $('accountPassword').value = ''; $('accountModal').classList.add('hidden'); };
   $('deleteAccountBtn').onclick = deleteAccount;
 
   document.querySelectorAll('.side-btn').forEach((btn) => {

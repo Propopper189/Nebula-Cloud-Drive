@@ -129,6 +129,11 @@ app.get('/api/auth/me', auth, (req, res) => {
 
 app.delete('/api/account', auth, (req, res) => {
   const email = req.userEmail;
+  const password = req.body?.password;
+  if (!password || db.users[email]?.password !== password) {
+    return res.status(401).json({ message: 'Password verification failed.' });
+  }
+
   for (const item of ensureUserFiles(email)) removeBinary(item.id);
   delete db.filesByUser[email];
   delete db.users[email];
