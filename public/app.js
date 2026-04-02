@@ -237,6 +237,10 @@ async function submitAuth() {
     $('authMessage').textContent = '';
     await loadDrive();
   } catch (err) {
+    state.token = '';
+    state.user = '';
+    localStorage.removeItem('nebula_token');
+    localStorage.removeItem('nebula_user');
     $('authMessage').textContent = err.message;
   }
 }
@@ -563,5 +567,18 @@ if (!state.token && IS_FILE_MODE) {
   }
 }
 
-if (state.token && state.user) loadDrive().catch(() => signOut());
-else showAuth('signin');
+async function bootstrap() {
+  if (state.token && state.user) {
+    try {
+      await api('/auth/me');
+      await loadDrive();
+      return;
+    } catch {
+      await signOut();
+      return;
+    }
+  }
+  showAuth('signin');
+}
+
+bootstrap();

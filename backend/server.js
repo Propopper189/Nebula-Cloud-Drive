@@ -123,6 +123,10 @@ app.post('/api/auth/signout', auth, (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/auth/me', auth, (req, res) => {
+  res.json({ email: req.userEmail });
+});
+
 app.delete('/api/account', auth, (req, res) => {
   const email = req.userEmail;
   for (const item of ensureUserFiles(email)) removeBinary(item.id);
