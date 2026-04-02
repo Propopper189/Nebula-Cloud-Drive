@@ -2,10 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
 const path = require('path');
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const STORAGE_LIMIT_BYTES = 10 * 1024 * 1024 * 1024;
+const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(cors());
 app.use(express.json());
@@ -14,6 +16,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 const users = new Map(); // email -> { password }
 const sessions = new Map(); // token -> email
 const userFiles = new Map(); // email -> file records
+const fileBlobs = new Map(); // fileId -> { buffer, mimeType, originalName }
 
 function auth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
@@ -110,6 +113,34 @@ app.post('/api/files', auth, (req, res) => {
   res.status(201).json(item);
 });
 
+app.post('/api/upload', auth, upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'file is required.' });
+  const parentPath = req.body?.parentPath || '';
+  const records = ensureUserFiles(req.userEmail);
+  const used = records.filter((r) => !r.trashedAt).reduce((acc, item) => acc + (item.size || 0), 0);
+  if (used + req.file.size > STORAGE_LIMIT_BYTES) {
+    return res.status(413).json({ message: 'Storage limit exceeded. Upgrade your plan or free up space.' });
+  }
+
+  const item = {
+    id: crypto.randomUUID(),
+    name: parentPath ? `${parentPath}/${req.file.originalname}` : req.file.originalname,
+    type: 'file',
+    size: req.file.size,
+    modified: new Date().toISOString().slice(0, 10),
+    sharedWith: [],
+    trashedAt: null,
+    mimeType: req.file.mimetype || 'application/octet-stream',
+  };
+  records.unshift(item);
+  fileBlobs.set(item.id, {
+    buffer: req.file.buffer,
+    mimeType: item.mimeType,
+    originalName: req.file.originalname,
+  });
+  res.status(201).json(item);
+});
+
 app.patch('/api/files/:id/trash', auth, (req, res) => {
   const records = ensureUserFiles(req.userEmail);
   const file = records.find((f) => f.id === req.params.id);
@@ -139,8 +170,31 @@ app.delete('/api/files/:id', auth, (req, res) => {
   if (!records[index].trashedAt) {
     return res.status(400).json({ message: 'Only trashed files can be permanently deleted.' });
   }
+  fileBlobs.delete(records[index].id);
   records.splice(index, 1);
   res.json({ ok: true });
+});
+
+app.get('/api/files/:id/download', auth, (req, res) => {
+  let file = ensureUserFiles(req.userEmail).find((f) => f.id === req.params.id);
+  if (!file) {
+    for (const [ownerEmail, records] of userFiles.entries()) {
+      if (ownerEmail === req.userEmail) continue;
+      const maybe = records.find((f) => f.id === req.params.id && !f.trashedAt && f.sharedWith?.includes(req.userEmail));
+      if (maybe) {
+        file = maybe;
+        break;
+      }
+    }
+  }
+  if (!file) return res.status(404).json({ message: 'File not found.' });
+  if (file.type === 'folder') return res.status(400).json({ message: 'Folders cannot be downloaded.' });
+
+  const blob = fileBlobs.get(file.id);
+  if (!blob) return res.status(404).json({ message: 'Binary content not available for this file.' });
+  res.setHeader('Content-Type', blob.mimeType);
+  res.setHeader('Content-Disposition', `attachment; filename=\"${encodeURIComponent(blob.originalName)}\"`);
+  return res.send(blob.buffer);
 });
 
 app.get('*', (_, res) => {

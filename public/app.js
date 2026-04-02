@@ -262,20 +262,38 @@ async function loadDrive() {
 
 async function uploadRecords(fileList, isFolder = false) {
   let used = state.files.filter((f) => !f.trashedAt).reduce((a, b) => a + (b.size || 0), 0);
+  let uploadedCount = 0;
   for (const file of [...fileList]) {
     if (used + file.size > LIMIT) {
       toast(`Cannot upload ${file.name}: exceeds 10 GB storage limit`);
       continue;
     }
     const parentPath = isFolder ? (file.webkitRelativePath || '').split('/').slice(0, -1).join('/') : '';
-    await api('/files', {
-      method: 'POST',
-      body: JSON.stringify({ name: file.name, type: 'file', size: file.size, parentPath, sharedWith: [] }),
-    });
+    if (IS_FILE_MODE) {
+      await api('/files', {
+        method: 'POST',
+        body: JSON.stringify({ name: file.name, type: 'file', size: file.size, parentPath, sharedWith: [] }),
+      });
+    } else {
+      const form = new FormData();
+      form.append('file', file, file.name);
+      form.append('parentPath', parentPath);
+      await fetch(`${API}/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${state.token}` },
+        body: form,
+      }).then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.message || 'Upload failed');
+        }
+      });
+    }
     used += file.size;
+    uploadedCount += 1;
   }
   await loadDrive();
-  toast('Upload completed');
+  toast(uploadedCount ? `Upload completed: ${uploadedCount} file(s)` : 'No files uploaded');
 }
 
 async function createFolder() {
@@ -305,6 +323,26 @@ async function deleteForever() {
 function downloadSelected() {
   const item = getSelected();
   if (!item || item.type === 'folder' || state.section === 'trash') return;
+  if (!IS_FILE_MODE) {
+    fetch(`${API}/files/${item.id}/download`, {
+      headers: { Authorization: `Bearer ${state.token}` },
+    }).then(async (res) => {
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Download failed');
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = item.name.split('/').pop();
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Download started');
+    }).catch((error) => toast(error.message));
+    return;
+  }
+
   const content = [
     `NebulaCloud Drive file export`,
     `Name: ${item.name}`,
