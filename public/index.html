@@ -6,14 +6,14 @@
   <title>NebulaCloud Drive</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <section id="authPage" class="page auth-page">
     <div class="auth-card">
-      <h1>NebulaCloud Drive</h1>
-      <p class="sub">Secure access to your personal drive.</p>
+      <h1>Welcome to Nebula Drive</h1>
+      <p class="sub">Sign in to access your cloud workspace.</p>
       <div class="tabs">
         <button id="tabSignin" class="tab active">Sign In</button>
         <button id="tabSignup" class="tab">Sign Up</button>
@@ -27,16 +27,19 @@
     </div>
   </section>
 
-  <section id="drivePage" class="page hidden">
-    <header>
-      <h2>NebulaCloud Drive</h2>
-      <input id="searchInput" placeholder="Search files and folders" />
-      <span id="currentUser"></span>
+  <section id="drivePage" class="page hidden drive-shell">
+    <header class="topbar">
+      <div class="brand">NEBULA</div>
+      <div class="search-wrap">
+        <input id="searchInput" placeholder="Search in Nebula Drive" />
+      </div>
+      <span id="currentUser" class="user-pill"></span>
       <button id="signOutBtn" class="btn">Sign Out</button>
     </header>
 
-    <main>
-      <aside>
+    <main class="app-main">
+      <aside class="left-rail">
+        <button class="new-btn">+ New</button>
         <button data-section="drive" class="side-btn active">My Drive</button>
         <button data-section="shared" class="side-btn">Shared with Me</button>
         <button data-section="trash" class="side-btn">Trash</button>
@@ -57,8 +60,27 @@
           <button id="trashBtn" class="btn" disabled>Move to Trash</button>
           <button id="deleteForeverBtn" class="btn" disabled>Delete Permanently</button>
         </div>
+
+        <div class="suggested">
+          <h3>Suggested</h3>
+          <div class="suggested-grid">
+            <div class="suggested-card">Marketing Plan.pdf</div>
+            <div class="suggested-card">Project Nova Assets</div>
+            <div class="suggested-card">Q3 Report.docx</div>
+            <div class="suggested-card">Earthrise Photo.jpg</div>
+          </div>
+        </div>
+
         <input id="fileInput" type="file" multiple hidden>
         <input id="folderInput" type="file" webkitdirectory directory multiple hidden>
+
+        <div class="table-head">
+          <div>Name</div>
+          <div>Owner</div>
+          <div>Last modified</div>
+          <div>File size</div>
+        </div>
+
         <div id="empty" class="empty">No items in this section.</div>
         <div id="grid" class="grid"></div>
       </section>

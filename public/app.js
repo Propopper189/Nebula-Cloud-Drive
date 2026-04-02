@@ -237,7 +237,16 @@ function renderGrid() {
   for (const item of list) {
     const card = document.createElement('article');
     card.className = `card${item.id === state.selectedId ? ' active' : ''}`;
-    card.innerHTML = `<div><strong>${item.type === 'folder' ? 'DIR' : 'FILE'}</strong></div><div>${item.name}</div><div class="meta">${item.type === 'folder' ? 'Folder' : fmt(item.size || 0)}</div>`;
+    const owner = state.section === 'shared' ? (item.owner || 'Shared') : 'me';
+    const modified = item.modified || '-';
+    const size = item.type === 'folder' ? '--' : fmt(item.size || 0);
+    const icon = item.type === 'folder' ? '📁' : '📄';
+    card.innerHTML = `
+      <div class="file-name-cell"><span class="file-icon">${icon}</span><strong>${item.name}</strong></div>
+      <div class="file-owner">${owner}</div>
+      <div class="file-modified">${modified}</div>
+      <div class="file-size">${size}</div>
+    `;
     card.onclick = () => { state.selectedId = item.id; renderGrid(); renderDetails(); };
     grid.appendChild(card);
   }
