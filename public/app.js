@@ -174,6 +174,27 @@ function localApi(path, options = {}) {
     return { ok: true };
   }
 
+  if (path === '/upload' && method === 'POST' && body instanceof FormData) {
+    const file = body.get('file');
+    const parentPath = body.get('parentPath') || '';
+    if (!(file instanceof File)) throw new Error('file is required.');
+    const used = files.filter((f) => !f.trashedAt).reduce((a, b) => a + (b.size || 0), 0);
+    if (used + file.size > LIMIT) throw new Error('Storage limit exceeded. Upload would exceed 10 GB.');
+    const item = {
+      id: crypto.randomUUID(),
+      name: parentPath ? `${parentPath}/${file.name}` : file.name,
+      type: 'file',
+      size: file.size,
+      modified: new Date().toISOString().slice(0, 10),
+      sharedWith: [],
+      trashedAt: null,
+    };
+    files.unshift(item);
+    saveFiles(files);
+    localBlobMap.set(item.id, file);
+    return item;
+  }
+
   throw new Error('Operation not available in local mode.');
 }
 
@@ -481,8 +502,8 @@ function wire() {
   $('uploadFileBtn').onclick = () => $('fileInput').click();
   $('newQuickBtn').onclick = () => $('fileInput').click();
   $('uploadFolderBtn').onclick = () => $('folderInput').click();
-  $('fileInput').onchange = (e) => uploadRecords(e.target.files, false);
-  $('folderInput').onchange = (e) => uploadRecords(e.target.files, true);
+  $('fileInput').onchange = async (e) => { await uploadRecords(e.target.files, false); e.target.value = ''; };
+  $('folderInput').onchange = async (e) => { await uploadRecords(e.target.files, true); e.target.value = ''; };
 
   $('newFolderBtn').onclick = createFolder;
   $('shareBtn').onclick = openShare;
