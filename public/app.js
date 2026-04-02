@@ -54,11 +54,7 @@ async function api(path, options = {}) {
     if (IS_FILE_MODE) {
       const networkIssue = error instanceof TypeError || /fetch/i.test(error.message);
       if (networkIssue) {
-        if (!window.__nebulaLocalWarned) {
-          window.__nebulaLocalWarned = true;
-          toast('Backend unreachable in file mode. Using local-only storage for this browser profile.');
-        }
-        return localApi(path, options);
+        throw new Error('Cannot reach backend API from file mode. Start the server with `npm start` and retry.');
       }
     }
     throw error;
@@ -559,13 +555,6 @@ function wire() {
 }
 
 wire();
-if (!state.token && IS_FILE_MODE) {
-  const session = readJson(localKey.session, null);
-  if (session?.token && session?.email) {
-    state.token = session.token;
-    state.user = session.email;
-  }
-}
 
 async function bootstrap() {
   if (state.token && state.user) {
