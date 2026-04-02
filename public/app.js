@@ -1,7 +1,8 @@
 const API = '/api';
 const LIMIT = 10 * 1024 * 1024 * 1024;
 const IS_FILE_MODE = location.protocol === 'file:';
-const FILE_MODE_API_ORIGIN = localStorage.getItem('nebula_api_origin') || 'http://localhost:3000';
+const DEV_API_ORIGIN = localStorage.getItem('nebula_api_origin') || 'http://localhost:3000';
+const IS_LOCALHOST = ['localhost', '127.0.0.1'].includes(location.hostname);
 
 const state = {
   mode: 'signin',
@@ -34,7 +35,9 @@ function toast(msg) {
 }
 
 function apiBase(path) {
-  return IS_FILE_MODE ? `${FILE_MODE_API_ORIGIN}${API}${path}` : `${API}${path}`;
+  if (IS_FILE_MODE) return `${DEV_API_ORIGIN}${API}${path}`;
+  if (IS_LOCALHOST && location.port && location.port !== '3000') return `${DEV_API_ORIGIN}${API}${path}`;
+  return `${API}${path}`;
 }
 
 async function api(path, options = {}) {
