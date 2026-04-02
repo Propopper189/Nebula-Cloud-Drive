@@ -11,6 +11,7 @@ const state = {
   section: 'drive',
   selectedId: null,
 };
+const localBlobMap = new Map();
 
 const localKey = {
   users: 'nebula_local_users',
@@ -270,10 +271,11 @@ async function uploadRecords(fileList, isFolder = false) {
     }
     const parentPath = isFolder ? (file.webkitRelativePath || '').split('/').slice(0, -1).join('/') : '';
     if (IS_FILE_MODE) {
-      await api('/files', {
+      const created = await api('/files', {
         method: 'POST',
         body: JSON.stringify({ name: file.name, type: 'file', size: file.size, parentPath, sharedWith: [] }),
       });
+      localBlobMap.set(created.id, file);
     } else {
       const form = new FormData();
       form.append('file', file, file.name);
@@ -343,19 +345,15 @@ function downloadSelected() {
     return;
   }
 
-  const content = [
-    `NebulaCloud Drive file export`,
-    `Name: ${item.name}`,
-    `Type: ${item.type}`,
-    `Size: ${item.size || 0} bytes`,
-    `Modified: ${item.modified}`,
-    `Owner: ${state.section === 'shared' ? item.owner || 'Shared' : state.user}`,
-  ].join('\\n');
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const blob = localBlobMap.get(item.id);
+  if (!blob) {
+    toast('Local preview mode cannot download this file after refresh. Run npm start for persistent binary downloads.');
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${item.name.split('/').pop()}.txt`;
+  a.download = item.name.split('/').pop();
   a.click();
   URL.revokeObjectURL(url);
   toast('Download started');

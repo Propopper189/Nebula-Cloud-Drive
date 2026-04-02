@@ -2,12 +2,23 @@ const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
 const path = require('path');
+const fs = require('fs');
 const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const STORAGE_LIMIT_BYTES = 10 * 1024 * 1024 * 1024;
-const upload = multer({ storage: multer.memoryStorage() });
+const uploadDir = path.join(__dirname, '..', 'uploads');
+fs.mkdirSync(uploadDir, { recursive: true });
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_, __, cb) => cb(null, uploadDir),
+    filename: (_, file, cb) => {
+      const safe = file.originalname.replace(/[^\w.\- ]+/g, '_');
+      cb(null, `${Date.now()}-${crypto.randomUUID()}-${safe}`);
+    },
+  }),
+});
 
 app.use(cors());
 app.use(express.json());
@@ -16,7 +27,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 const users = new Map(); // email -> { password }
 const sessions = new Map(); // token -> email
 const userFiles = new Map(); // email -> file records
-const fileBlobs = new Map(); // fileId -> { buffer, mimeType, originalName }
+const fileBlobs = new Map(); // fileId -> { filePath, mimeType, originalName }
 
 function auth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
@@ -134,7 +145,7 @@ app.post('/api/upload', auth, upload.single('file'), (req, res) => {
   };
   records.unshift(item);
   fileBlobs.set(item.id, {
-    buffer: req.file.buffer,
+    filePath: req.file.path,
     mimeType: item.mimeType,
     originalName: req.file.originalname,
   });
@@ -170,6 +181,8 @@ app.delete('/api/files/:id', auth, (req, res) => {
   if (!records[index].trashedAt) {
     return res.status(400).json({ message: 'Only trashed files can be permanently deleted.' });
   }
+  const blob = fileBlobs.get(records[index].id);
+  if (blob?.filePath && fs.existsSync(blob.filePath)) fs.unlinkSync(blob.filePath);
   fileBlobs.delete(records[index].id);
   records.splice(index, 1);
   res.json({ ok: true });
@@ -192,9 +205,8 @@ app.get('/api/files/:id/download', auth, (req, res) => {
 
   const blob = fileBlobs.get(file.id);
   if (!blob) return res.status(404).json({ message: 'Binary content not available for this file.' });
-  res.setHeader('Content-Type', blob.mimeType);
-  res.setHeader('Content-Disposition', `attachment; filename=\"${encodeURIComponent(blob.originalName)}\"`);
-  return res.send(blob.buffer);
+  if (!fs.existsSync(blob.filePath)) return res.status(404).json({ message: 'Stored file is missing on server.' });
+  return res.download(blob.filePath, blob.originalName);
 });
 
 app.get('*', (_, res) => {
