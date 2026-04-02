@@ -209,6 +209,7 @@ function renderDetails() {
   $('detailsEmpty').classList.toggle('hidden', !!item);
   $('detailsBox').classList.toggle('hidden', !item);
   $('shareBtn').disabled = !item || state.section !== 'drive';
+  $('downloadBtn').disabled = !item || item.type === 'folder' || state.section === 'trash';
   $('trashBtn').disabled = !item || state.section !== 'drive';
   $('deleteForeverBtn').disabled = !item || state.section !== 'trash';
   if (!item) return;
@@ -301,6 +302,27 @@ async function deleteForever() {
   toast('Deleted permanently');
 }
 
+function downloadSelected() {
+  const item = getSelected();
+  if (!item || item.type === 'folder' || state.section === 'trash') return;
+  const content = [
+    `NebulaCloud Drive file export`,
+    `Name: ${item.name}`,
+    `Type: ${item.type}`,
+    `Size: ${item.size || 0} bytes`,
+    `Modified: ${item.modified}`,
+    `Owner: ${state.section === 'shared' ? item.owner || 'Shared' : state.user}`,
+  ].join('\\n');
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${item.name.split('/').pop()}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Download started');
+}
+
 function openShare() {
   if (!getSelected()) return;
   $('shareEmail').value = '';
@@ -333,6 +355,7 @@ function wire() {
   $('folderInput').onchange = (e) => uploadRecords(e.target.files, true);
   $('newFolderBtn').onclick = createFolder;
   $('trashBtn').onclick = moveToTrash;
+  $('downloadBtn').onclick = downloadSelected;
   $('deleteForeverBtn').onclick = deleteForever;
   $('shareBtn').onclick = openShare;
   $('cancelShare').onclick = () => $('shareModal').classList.add('hidden');
