@@ -11,6 +11,7 @@ const state = {
   files: [],
   sharedFiles: [],
   section: 'drive',
+  currentFolder: '',
   selectedIds: new Set(),
 };
 
@@ -257,12 +258,40 @@ async function signOut() {
   showAuth('signin');
 }
 
+
+function normalizePath(value = '') {
+  return value.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+}
+
+function currentFolderPrefix() {
+  return state.currentFolder ? `${state.currentFolder}/` : '';
+}
+
+function basename(path) {
+  const normalized = normalizePath(path);
+  if (!normalized) return '';
+  const parts = normalized.split('/');
+  return parts[parts.length - 1];
+}
+
 function currentList() {
   const source = state.section === 'shared'
     ? state.sharedFiles
     : state.files.filter((f) => (state.section === 'trash' ? !!f.trashedAt : !f.trashedAt));
+
+  let scoped = source;
+  if (state.section === 'drive') {
+    const prefix = currentFolderPrefix();
+    scoped = source.filter((f) => {
+      const name = normalizePath(f.name);
+      if (!prefix) return !name.includes('/');
+      if (!name.startsWith(prefix)) return false;
+      return !name.slice(prefix.length).includes('/');
+    });
+  }
+
   const q = $('searchInput').value.trim().toLowerCase();
-  return q ? source.filter((f) => f.name.toLowerCase().includes(q)) : source;
+  return q ? scoped.filter((f) => f.name.toLowerCase().includes(q)) : scoped;
 }
 
 function selectedItems() {
@@ -328,7 +357,7 @@ function renderGrid() {
       <div class="file-name-cell">
         <input type="checkbox" class="row-check" ${state.selectedIds.has(item.id) ? 'checked' : ''}>
         <span class="file-icon">${item.type === 'folder' ? '📁' : '📄'}</span>
-        <strong>${item.name}</strong>
+        <strong>${basename(item.name)}</strong>
       </div>
       <div>${owner}</div>
       <div>${item.modified || '-'}</div>
@@ -340,6 +369,15 @@ function renderGrid() {
       toggleSelect(item.id, e.target.checked);
       renderGrid();
       renderDetails();
+    };
+
+    row.ondblclick = () => {
+      if (state.section === 'drive' && item.type === 'folder') {
+        state.currentFolder = normalizePath(item.name);
+        state.selectedIds = new Set();
+        renderGrid();
+        renderDetails();
+      }
     };
 
     row.onclick = (e) => {
@@ -354,6 +392,9 @@ function renderGrid() {
     };
     grid.appendChild(row);
   });
+
+  $('folderPathLabel').textContent = state.currentFolder ? `My Drive / ${state.currentFolder}` : 'My Drive';
+  $('folderUpBtn').disabled = !(state.section === 'drive' && state.currentFolder);
 
   renderStorage();
   const readonly = state.section === 'shared';
@@ -380,11 +421,19 @@ async function uploadRecords(fileList, isFolder = false) {
   if (!fileList?.length) return;
   const files = [...fileList];
   let used = state.files.filter((f) => !f.trashedAt).reduce((a, b) => a + (b.size || 0), 0);
+  const existingFolders = new Set(state.files.filter((f) => f.type === 'folder').map((f) => normalizePath(f.name)));
 
   if (isFolder) {
-    const root = (files[0].webkitRelativePath || '').split('/')[0];
-    if (root && !state.files.some((f) => f.type === 'folder' && f.name === root && !f.trashedAt)) {
-      await api('/files', { method: 'POST', body: JSON.stringify({ name: root, type: 'folder', size: 0 }) });
+    for (const file of files) {
+      const normalizedRel = normalizePath(file.webkitRelativePath || '');
+      const relDirs = normalizedRel.split('/').slice(0, -1);
+      let cursor = normalizePath(state.currentFolder);
+      for (const segment of relDirs) {
+        cursor = normalizePath(cursor ? `${cursor}/${segment}` : segment);
+        if (!cursor || existingFolders.has(cursor)) continue;
+        await api('/files', { method: 'POST', body: JSON.stringify({ name: basename(cursor), type: 'folder', size: 0, parentPath: normalizePath(cursor.split('/').slice(0, -1).join('/')) }) });
+        existingFolders.add(cursor);
+      }
     }
   }
 
@@ -394,7 +443,9 @@ async function uploadRecords(fileList, isFolder = false) {
       toast(`Upload blocked: ${file.name} exceeds your 10 GB storage limit.`);
       continue;
     }
-    const parentPath = isFolder ? (file.webkitRelativePath || '').split('/').slice(0, -1).join('/') : '';
+
+    const relParent = isFolder ? normalizePath((file.webkitRelativePath || '').split('/').slice(0, -1).join('/')) : '';
+    const parentPath = normalizePath(state.currentFolder ? `${state.currentFolder}/${relParent}` : relParent || state.currentFolder);
 
     if (IS_FILE_MODE) {
       const created = await api('/files', {
@@ -419,7 +470,7 @@ async function uploadRecords(fileList, isFolder = false) {
 async function createFolder() {
   const name = prompt('Folder name', 'New Folder');
   if (!name) return;
-  await api('/files', { method: 'POST', body: JSON.stringify({ name, type: 'folder', size: 0 }) });
+  await api('/files', { method: 'POST', body: JSON.stringify({ name, type: 'folder', size: 0, parentPath: state.currentFolder }) });
   await loadDrive();
   toast('Folder created.');
 }
@@ -557,12 +608,22 @@ function wire() {
   };
   $('closeAccountModal').onclick = () => { $('accountPassword').value = ''; $('accountDeleteMsg').classList.add('hidden'); $('accountDeleteMsg').textContent = ''; $('accountModal').classList.add('hidden'); };
   $('deleteAccountBtn').onclick = deleteAccount;
+  $('folderUpBtn').onclick = () => {
+    if (!state.currentFolder) return;
+    const parts = normalizePath(state.currentFolder).split('/');
+    parts.pop();
+    state.currentFolder = parts.join('/');
+    state.selectedIds = new Set();
+    renderGrid();
+    renderDetails();
+  };
 
   document.querySelectorAll('.side-btn').forEach((btn) => {
     btn.onclick = () => {
       document.querySelectorAll('.side-btn').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       state.section = btn.dataset.section;
+      state.currentFolder = '';
       state.selectedIds = new Set();
       renderGrid();
       renderDetails();

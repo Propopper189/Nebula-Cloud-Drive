@@ -170,3 +170,21 @@ Used advanced:
 - ALB, CloudFront, CloudWatch, Auto Scaling, Lambda
 
 (You can also use Elastic Beanstalk instead of hand-managed EC2 stack if you prefer.)
+
+
+---
+
+## 12) Step-by-step deployment runbook
+
+1. **Create VPC and subnets** (2 AZ minimum): public for ALB, private for EC2/RDS.
+2. **Create IAM roles**: EC2 role (S3 + CloudWatch), Lambda role (S3 + logs + DB secret read).
+3. **Create RDS instance** in private subnets and initialize schema (`users`, `files`, `shares`, `sessions`).
+4. **Create S3 buckets**: one for uploads, one for static frontend assets.
+5. **Launch EC2 Auto Scaling Group** with Node.js runtime and app deploy script.
+6. **Configure ALB** with target group health checks for your API (`/api/auth/me` or `/health`).
+7. **Attach ACM certificate** and enforce HTTPS.
+8. **Deploy backend** (`npm ci && npm start`) and set environment variables (`DB_*`, `S3_*`, `AWS_REGION`).
+9. **Deploy frontend** to S3 assets bucket and place CloudFront in front of S3 + ALB origins.
+10. **Create Lambda cleanup job** with EventBridge schedule for trash purge (daily).
+11. **Enable CloudWatch alarms** for ALB 5xx, EC2 CPU, RDS CPU/storage/connections.
+12. **Run smoke tests**: signup/signin, upload folder, share, trash/restore/delete, download, quota errors.
