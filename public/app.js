@@ -1,6 +1,7 @@
 const API = '/api';
 const LIMIT = 10 * 1024 * 1024 * 1024;
 const IS_FILE_MODE = location.protocol === 'file:';
+const FILE_MODE_API_ORIGIN = localStorage.getItem('nebula_api_origin') || 'http://localhost:3000';
 
 const state = {
   mode: 'signin',
@@ -32,19 +33,31 @@ function toast(msg) {
   toast.timer = setTimeout(() => t.classList.remove('show'), 2600);
 }
 
+function apiBase(path) {
+  return IS_FILE_MODE ? `${FILE_MODE_API_ORIGIN}${API}${path}` : `${API}${path}`;
+}
+
 async function api(path, options = {}) {
-  if (IS_FILE_MODE) return localApi(path, options);
   const headers = { ...(options.headers || {}) };
   if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
 
   try {
-    const res = await fetch(`${API}${path}`, { ...options, headers });
+    const res = await fetch(apiBase(path), { ...options, headers });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.message || 'Request failed');
     return body;
   } catch (error) {
-    if (IS_FILE_MODE) return localApi(path, options);
+    if (IS_FILE_MODE) {
+      const networkIssue = error instanceof TypeError || /fetch/i.test(error.message);
+      if (networkIssue) {
+        if (!window.__nebulaLocalWarned) {
+          window.__nebulaLocalWarned = true;
+          toast('Backend unreachable in file mode. Using local-only storage for this browser profile.');
+        }
+        return localApi(path, options);
+      }
+    }
     throw error;
   }
 }
@@ -445,7 +458,7 @@ function downloadSelected() {
     return toast('Download started.');
   }
 
-  fetch(`${API}/files/${item.id}/download`, { headers: { Authorization: `Bearer ${state.token}` } })
+  fetch(apiBase(`/files/${item.id}/download`), { headers: { Authorization: `Bearer ${state.token}` } })
     .then(async (res) => {
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
