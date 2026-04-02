@@ -500,11 +500,15 @@ async function confirmShare() {
 }
 
 async function deleteAccount() {
+  const msg = $('accountDeleteMsg');
   const password = $('accountPassword').value;
   if (!password) {
-    toast('Enter your password to delete account.');
+    msg.textContent = 'Please enter your password to delete this account.';
+    msg.classList.remove('hidden');
     return;
   }
+  msg.classList.add('hidden');
+
   const sure = confirm('Delete your account and all files permanently? This cannot be undone.');
   if (!sure) return;
 
@@ -515,7 +519,8 @@ async function deleteAccount() {
     toast('Account deleted.');
     await signOut();
   } catch (error) {
-    toast(error.message || 'Password verification failed.');
+    msg.textContent = error.message || 'Wrong password. Account deletion denied.';
+    msg.classList.remove('hidden');
   }
 }
 
@@ -546,9 +551,11 @@ function wire() {
   $('openAccountBtn').onclick = () => {
     $('accountMenu').classList.add('hidden');
     $('accountPassword').value = '';
+    $('accountDeleteMsg').classList.add('hidden');
+    $('accountDeleteMsg').textContent = '';
     $('accountModal').classList.remove('hidden');
   };
-  $('closeAccountModal').onclick = () => { $('accountPassword').value = ''; $('accountModal').classList.add('hidden'); };
+  $('closeAccountModal').onclick = () => { $('accountPassword').value = ''; $('accountDeleteMsg').classList.add('hidden'); $('accountDeleteMsg').textContent = ''; $('accountModal').classList.add('hidden'); };
   $('deleteAccountBtn').onclick = deleteAccount;
 
   document.querySelectorAll('.side-btn').forEach((btn) => {
